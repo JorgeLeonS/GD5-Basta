@@ -71,14 +71,12 @@ class Game {
 
 
 
-  addPlayer(player) {
+  newPlayer(player) {
     if (this.players.length < 2) {
       this.players.push(player);
       if(this.players.length == 2) {
         this.players[0].opponent = this.players[1];
         this.players[1].opponent = this.players[0];
-        console.log("Opponent of player " + this.players[0].id + " is " + this.players[0].opponent.id);
-        console.log("Opponent of player " + this.players[1].id + " is " + this.players[1].opponent.id);
       }
     }
     else
@@ -88,7 +86,7 @@ class Game {
     
   }
 
-  finishGame() {
+  endGame() {
       this.players[0].opponent = 'unmatched';
       this.players[0].points = 0;
       this.players[0].status = 'undefined';
@@ -101,7 +99,7 @@ class Game {
     //Jugador nuevo
     for(var i = 0; i < this.otherPlayers.length; i++) {
       if (this.players.length < 2) {
-        this.addPlayer(this.otherPlayers[0]);
+        this.newPlayer(this.otherPlayers[0]);
         this.otherPlayers.splice(0, 1);
         console.log("New active player: " + this.players.length);
         console.log("Updated waitlist: " + this.otherPlayers.length);
@@ -118,7 +116,7 @@ class Game {
         //Jugador nuevo
     for(var i = 0; i < limit; i++) {
       if (this.players.length < 2) {
-        this.addPlayer(this.otherPlayers[0]);
+        this.newPlayer(this.otherPlayers[0]);
         this.otherPlayers.splice(0, 1);
         console.log("New active player: " + this.players.length);
         console.log("Updated waitlist: " + this.otherPlayers.length);
@@ -146,11 +144,9 @@ class Game {
     if (nombre.charAt(0) == letter) {
       namePoints = 1;
     }
-
     if (color.charAt(0) == letter) {
       colorPoints = 1;
     }
-
     if (fruto.charAt(0) == letter) {
       fruitPoints = 1;
     }
@@ -191,7 +187,7 @@ class Player {
       this.status = 'undefined';
   }
 
-  defineOpponent(player) {
+  setOpponent(player) {
     this.opponent = player;
   }
 
@@ -218,11 +214,13 @@ io.on('connection', (socket) => {
   playNum ++;
   player = new Player(socket);
 
-  game.addPlayer(player);  
+  game.newPlayer(player);  
 
   socket.emit('playerConn', {message: `Bienvenido al juego, jugador ${playNum}.`});
 
   socket.on("disconnect", () => {
+    // var playerDis = this.players[i];
+    // this.players.splice(i,1);
     playNum--;
     console.log("Client disconnected. ID: ", socket.id);
     // delete clients[socket.id];
@@ -287,7 +285,7 @@ io.on('connection', (socket) => {
         });
 
         //Terminar el juego
-        game.finishGame();
+        game.endGame();
         cont = 0;
 
         //Iniciar un nuevo juego en caso de que hubiera gente esperando
