@@ -55,20 +55,25 @@ server.listen(appConfig.expressPort, () => {
   console.log(`Server is listenning on ${appConfig.expressPort}! (http://localhost:${appConfig.expressPort})`);
 });
 
+// var players = [];
+// var sockets = [];
+// randLetter = '';
+// gameover = false;
+
 class Game {
   constructor() {
       this.players = [];
       this.otherPlayers = [];
-      this.randomLetter = null;
+      this.randLetter = null;
       this.gameover = false;
   }
 
-  //Agregar jugadores
+
+
+
   addPlayer(player) {
-    //Si no hay dos jugaores activos, se manda el jugador a la lista de activos
     if (this.players.length < 2) {
       this.players.push(player);
-      //Si tenemos dos jugadores activos se indica cual es su oponente
       if(this.players.length == 2) {
         this.players[0].opponent = this.players[1];
         this.players[1].opponent = this.players[0];
@@ -76,7 +81,6 @@ class Game {
         console.log("Opponent of player " + this.players[1].id + " is " + this.players[1].opponent.id);
       }
     }
-    //Si ya hay dos jugadores activos se envía al jugador a la lista de espera
     else
     {
       this.otherPlayers.push(player);
@@ -84,27 +88,18 @@ class Game {
     
   }
 
-  //Terminar el juego
   finishGame() {
-    //Sacamos a los jugadores activos de la lista
-    for(var i = 1; i >= 0; i--) {
-      this.players[i].opponent = 'unmatched';
-      this.players[i].points = 0;
-      this.players[i].status = 'undefined';
+      this.players[0].opponent = 'unmatched';
+      this.players[0].points = 0;
+      this.players[0].status = 'undefined';
+      this.players[1].opponent = 'unmatched';
+      this.players[1].points = 0;
+      this.players[1].status = 'undefined';
       this.players.pop();
-    }
 
-    //Indicamos que el juego ya termino
     this.gameover = false;
-    //Checamos la lista de espera
-    this.checkOtherPlayers();
-  }
-
-  //Checamos la lista de espera
-  checkOtherPlayers() {
-    var limit = this.otherPlayers.length;
-    for(var i = 0; i < limit; i++) {
-      //Si no hay dos jugadores activos, se manda al primer jugador de la lista de espera a la lista de jugadores activos
+    //Jugador nuevo
+    for(var i = 0; i < this.otherPlayers.length; i++) {
       if (this.players.length < 2) {
         this.addPlayer(this.otherPlayers[0]);
         this.otherPlayers.splice(0, 1);
@@ -114,13 +109,21 @@ class Game {
     }
   }
 
-  //Eliminamos a un jugador a partir de su id de una lista
   deletePlayer(id) {
     for(var i = 0; i < this.players.length; i++) {
       if(this.players[i].id == id) {
         this.players.splice(i, 1);
         console.log("Active player deleted " + this.players.length);
-        this.checkOtherPlayers();
+        var limit = this.otherPlayers.length;
+        //Jugador nuevo
+    for(var i = 0; i < limit; i++) {
+      if (this.players.length < 2) {
+        this.addPlayer(this.otherPlayers[0]);
+        this.otherPlayers.splice(0, 1);
+        console.log("New active player: " + this.players.length);
+        console.log("Updated waitlist: " + this.otherPlayers.length);
+      }
+    }
         return;
       }
     }
@@ -135,13 +138,13 @@ class Game {
   }
 
   evalAnswers(nombre, color, fruto, numPlayer, letter){
-    var nombrePoints = 0;
+    var namePoints = 0;
     var colorPoints = 0;
-    var frutoPoints = 0;
+    var fruitPoints = 0;
     var totalPoints;
 
     if (nombre.charAt(0) == letter) {
-      nombrePoints = 1;
+      namePoints = 1;
     }
 
     if (color.charAt(0) == letter) {
@@ -149,9 +152,9 @@ class Game {
     }
 
     if (fruto.charAt(0) == letter) {
-      frutoPoints = 1;
+      fruitPoints = 1;
     }
-    totalPoints = nombrePoints + colorPoints + frutoPoints;
+    totalPoints = namePoints + colorPoints + fruitPoints;
     this.players[numPlayer].points = totalPoints;
     console.log(this.players[numPlayer].points);
     
@@ -178,7 +181,6 @@ class Game {
   }
 }
 
-//Clase del jugador
 class Player {
 
   constructor(socket) {
@@ -195,13 +197,22 @@ class Player {
 
 }
 
-//Conexión de jugadores
 let game = new Game();
 var cont = 0;
 var playNum = 0;
-var letters = 'ABCDEFGHIJKLMNOPQRSTUVWYXZ';
+var letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
 
 io.on('connection', (socket) => {
+
+//   if (opponentOf(socket)) { // If the current player has an opponent the game can begin
+//     socket.emit("game.begin", { // Send the game.begin event to the player
+//         symbol: players[socket.id].symbol
+//     });
+
+//     opponentOf(socket).emit("game.begin", { // Send the game.begin event to the opponent
+//         symbol: players[opponentOf(socket).id].symbol 
+//     });
+// }
 
   console.log("Client connected: " + socket.id);
   playNum ++;
@@ -211,64 +222,50 @@ io.on('connection', (socket) => {
 
   socket.emit('playerConn', {message: `Bienvenido al juego, jugador ${playNum}.`});
 
-  //Desconexión de un jugador
   socket.on("disconnect", () => {
     playNum--;
-    console.log("Client disconnected: ", socket.id);
+    console.log("Client disconnected. ID: ", socket.id);
+    // delete clients[socket.id];
     socket.broadcast.emit("clientdisconnect", socket.id);
   });
 
-  //Informar al oponente del jugador activo que se desconecto
   socket.on("disconnect", function() { 
-    if(game.players.length == 2){
       if(game.players[0].socket == socket && game.players[0].opponent != null) {
         game.players[0].opponent.socket.emit("opponent.left");
-        console.log("El oponente de 1 se ha ido");
       }
       else if(game.players[1].socket == socket && game.players[1].opponent != null) {
         game.players[1].opponent.socket.emit("opponnent.left");
-        console.log("El oponente de 0 se ha ido");
       }
-    }
-
-    //Eliminamos al jugador de las listas
     game.deletePlayer(socket.id);
 
   });
 
-  //Si hay dos jugadores el juego puede comenzar
   if (game.players.length == 2) {
-    //Random from https://stackoverflow.com/questions/1349404/generate-random-string-characters-in-javascript
-    var letter = letters.charAt(Math.floor(Math.random() * letters.length)); //Definimos con que letra se va a jugar
-    console.log(letter);
-    this.randomLetter = letter;
-    console.log(this.randomLetter);
+    var genLetter = letters[Math.floor((Math.random() * 26))];
+    // console.log(letter);
+    this.randLetter = genLetter;
+    // console.log(this.randLetter);
     
-    //Le decimos a los jugadores que letra toco
-
-    game.players[0].socket.emit("iniciarJuego", {
-      letter: letter,
+    game.players[0].socket.emit("sendParameters", {
+      letter: genLetter,
       number: 0
     });
 
-    game.players[1].socket.emit("iniciarJuego", {
-      letter: letter,
+    game.players[1].socket.emit("sendParameters", {
+      letter: genLetter,
       number: 1
     });
   }
 
-  //Un jugador envió sus palabras
   socket.on("wordsSent", function() {
     game.players[0].socket.emit("count");
     game.players[1].socket.emit("count");
   });
 
-  //Recibir respuestas del cliente
-  socket.on('answers-to-server', (data) => {
-    console.log('answertoserv'+this.randomLetter);
+  socket.on('make.move', (data) => {
     console.log('Respuestas del jugador: ' + data.jugador + ' son: ', data);
-    //Se manda this.randomLetter, porque por alguna razon no lo lee directamente en evalAnswers
-    game.evalAnswers(data.nombre, data.color, data.fruto, data.jugador, this.randomLetter);
+    //Se manda this.randLetter, porque por alguna razon no lo lee directamente en evalAnswers
+    game.evalAnswers(data.nombre, data.color, data.fruto, data.jugador, this.randLetter);
     cont++;
 
     //Si todos los jugadores mandaron sus respuestas y fueron evaluadas
@@ -278,14 +275,16 @@ io.on('connection', (socket) => {
 
       //Mandarle los resultados al jugador
       if (game.gameover == true) {
-        console.log("GAME OVER");
-        for(i = 0; i < game.players.length; i++){
-          game.players[i].socket.emit("showResults", {
-            status: game.players[i].status,
-            puntaje: game.players[i].points,
-            oponente: game.players[i].opponent.points
-          });
-        }
+        game.players[0].socket.emit("showResults", {
+          status: game.players[0].status,
+          puntaje: game.players[0].points,
+          oponente: game.players[0].opponent.points
+        });
+        game.players[1].socket.emit("showResults", {
+          status: game.players[1].status,
+          puntaje: game.players[1].points,
+          oponente: game.players[1].opponent.points
+        });
 
         //Terminar el juego
         game.finishGame();
@@ -293,19 +292,18 @@ io.on('connection', (socket) => {
 
         //Iniciar un nuevo juego en caso de que hubiera gente esperando
         if (game.players.length == 2) {
-          //Random from https://stackoverflow.com/questions/1349404/generate-random-string-characters-in-javascript
-          var letter = letters.charAt(Math.floor(Math.random() * letters.length)); //Definimos con que letra se va a jugar
-          console.log(letter);
-          this.randomLetter = letter;
-          console.log(this.randomLetter);
+          var genLetter = [Math.floor((Math.random() * 26))]; 
+          // console.log(letter);
+          this.randLetter = genLetter;
+          // console.log(this.randLetter);
 
-          game.players[0].socket.emit("iniciarJuego", {
-            letter: letter,
+          game.players[0].socket.emit("sendParameters", {
+            letter: genLetter,
             number: 0
           });
 
-          game.players[1].socket.emit("iniciarJuego", {
-            letter: letter,
+          game.players[1].socket.emit("sendParameters", {
+            letter: genLetter,
             number: 1
           });
         }

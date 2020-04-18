@@ -25,7 +25,7 @@ window.socket.on('playerConn', function(data){
     document.getElementById('player').innerHTML = data.message;
 });
 
-window.socket.on('iniciarJuego', function(data) {
+window.socket.on('sendParameters', function(data) {
     letter = data.letter;
     players = data.number;
     document.getElementById('waiting').innerHTML = "La letra es: " + letter;
@@ -56,7 +56,7 @@ function obtenerPalabras(){
     color = document.getElementById('color').value.toUpperCase();
     fruit = document.getElementById('fruit').value.toUpperCase();
 
-    window.socket.emit('answers-to-server', {
+    window.socket.emit('make.move', {
         nombre: name, 
         color: color,
         fruto: fruit,
